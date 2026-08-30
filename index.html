@@ -137,8 +137,10 @@
           document.getElementById('punto_display').className = 'no-reconocido';
         };
       } catch (err) {
-        document.getElementById('punto_display').textContent = '⚠️ Error activando NFC: ' + err.message;
+        document.getElementById('punto_display').textContent = '⚠️ Este celular no pudo activar NFC (probablemente no tiene el chip). Usando modo simulación.';
         document.getElementById('punto_display').className = 'no-reconocido';
+        document.getElementById('btnEscanear').style.display = 'none';
+        document.getElementById('simulacion').style.display = 'block';
       }
     });
 
