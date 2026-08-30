@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MH Rondas</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg">
+<meta name="theme-color" content="#17365D">
+<style>
+  body { font-family: Arial, sans-serif; max-width: 480px; margin: 20px auto; padding: 0 16px; color: #222; }
+  h2 { font-size: 18px; }
+  label { display: block; margin-top: 14px; font-weight: bold; font-size: 14px; }
+  select, textarea, input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; font-size: 14px; }
+  button { margin-top: 20px; width: 100%; padding: 12px; background: #17365D; color: white; border: none; border-radius: 6px; font-size: 15px; }
+  button:disabled { background: #999; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: girar 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  #resultado { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+  .ok { background: #e3f7e3; border: 1px solid #4caf50; }
+  .error { background: #fdecea; border: 1px solid #e53935; }
+  .completa { background: #fff8e1; border: 2px solid #f9a825; font-size: 15px; font-weight: bold; text-align: center; }
+  .encolado { background: #e3edfa; border: 1px solid #1565c0; }
+  .aviso { font-size: 12px; color: #777; margin-top: 4px; }
+  #btnReiniciar { display: none; background: #2e7d32; }
+  #punto_display { padding:8px; background:#f0f0f0; border-radius:4px; font-size:14px; color:#333; }
+  #punto_display.leido { background:#e3f7e3; color:#256029; font-weight:bold; }
+  #punto_display.no-reconocido { background:#fdecea; color:#b71c1c; font-weight:bold; }
+  #simulacion { margin-top: 8px; padding: 10px; background: #eef3fa; border: 1px dashed #17365D; border-radius: 6px; }
+  #btnSimular { background: #6a1b9a; margin-top: 8px; }
+  #badge_pendientes { display:none; margin-top:12px; padding:10px; background:#1565c0; color:white; border-radius:6px; font-size:13px; text-align:center; }
+</style>
+</head>
+<body>
+  <h2>MH Rondas</h2>
+  <p class="aviso" id="aviso_modo">Cargando...</p>
+  <div id="badge_pendientes"></div>
+
+  <form id="form">
+    <label>Punto de ronda (leído por NFC)</label>
+    <div id="punto_display">Ningún tag leído todavía</div>
+    <button type="button" id="btnEscanear">📡 Escanear tag NFC</button>
+
+    <div id="simulacion" style="display:none;">
+      <label style="margin-top:0;">Modo simulación (este navegador no soporta NFC real)</label>
+      <select id="punto_simulado"></select>
+      <button type="button" id="btnSimular">Simular escaneo de este tag</button>
+    </div>
+
+    <label>Turno</label>
+    <select id="turno_id" required></select>
+
+    <label>Vigilante asignado (automático, según el turno)</label>
+    <div id="vigilante_display" style="padding:8px; background:#f0f0f0; border-radius:4px; font-size:14px; color:#333;">—</div>
+
+    <label>Estado</label>
+    <select id="estado" required>
+      <option value="NORMAL">NORMAL</option>
+      <option value="BAJA">BAJA</option>
+      <option value="MEDIA">MEDIA</option>
+      <option value="ALTA">ALTA</option>
+      <option value="CRITICA">CRITICA</option>
+    </select>
+
+    <label>Comentario</label>
+    <textarea id="detalle" rows="3" placeholder="Ej: Sin novedad"></textarea>
+
+    <label>Foto (opcional según el punto)</label>
+    <input type="file" id="foto" accept="image/*" capture="environment">
+
+    <button type="submit" id="btnEnviar" disabled>Escanea un tag primero</button>
+  </form>
+
+  <button id="btnReiniciar">Registrar otro punto</button>
+  <button id="btnMenu" style="display:none; background:#555; margin-top:8px;">Volver al inicio</button>
+  <button id="btnSincronizar" style="background:#1565c0;">🔄 Sincronizar ahora</button>
+
+  <div id="resultado" style="display:none;"></div>
+
+  <script src="./app.js"></script>
+  <script>
+    let geoLat = '', geoLng = '';
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        geoLat = pos.coords.latitude;
+        geoLng = pos.coords.longitude;
+      }, function () {});
+    }
+
+    let turnosCache = [];
+    let puntosCache = [];
+    let puntoActual = null;
+    let intentoId = generarIntentoId();
+
+    function generarIntentoId() {
+      return 'intento-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    }
+
+    async function cargarDatos() {
+      let datos;
+      try {
+        datos = await MHRondas.obtenerDatosFormulario(); // intenta en vivo
+      } catch (err) {
+        datos = MHRondas.obtenerDatosCache(); // offline: usa lo último guardado
+        mostrarResultado('encolado', 'Sin señal — usando la última lista de puntos/turnos guardada en este celular.');
+      }
+      turnosCache = datos.turnos;
+      puntosCache = datos.puntos;
+      llenarSelect('punto_simulado', datos.puntos, function (p) { return p.codigo_nfc + ' — ' + p.nombre; });
+      llenarSelect('turno_id', datos.turnos, function (t) { return t.id + ' — ' + t.nombre; });
+      actualizarVigilanteMostrado();
+      configurarModoNFC();
+      MHRondas.actualizarBadgePendientes();
+    }
+    cargarDatos();
+
+    function configurarModoNFC() {
+      const soportaNFC = 'NDEFReader' in window;
+      document.getElementById('aviso_modo').textContent = soportaNFC
+        ? 'Acerca el celular al tag para identificar el punto.'
+        : 'Este navegador no soporta lectura NFC real. Usando modo simulación.';
+      document.getElementById('btnEscanear').style.display = soportaNFC ? 'block' : 'none';
+      document.getElementById('simulacion').style.display = soportaNFC ? 'none' : 'block';
+    }
+
+    document.getElementById('btnEscanear').addEventListener('click', async function () {
+      try {
+        const reader = new NDEFReader();
+        await reader.scan();
+        document.getElementById('punto_display').textContent = 'Escaneando… acerca el celular al tag.';
+        document.getElementById('punto_display').className = '';
+        reader.onreading = function (event) {
+          procesarCodigoLeido(extraerTextoDeTag(event.message).trim());
+        };
+        reader.onreadingerror = function () {
+          document.getElementById('punto_display').textContent = '⚠️ No se pudo leer el tag, intenta de nuevo.';
+          document.getElementById('punto_display').className = 'no-reconocido';
+        };
+      } catch (err) {
+        document.getElementById('punto_display').textContent = '⚠️ Error activando NFC: ' + err.message;
+        document.getElementById('punto_display').className = 'no-reconocido';
+      }
+    });
+
+    function extraerTextoDeTag(mensaje) {
+      for (const record of mensaje.records) {
+        if (record.recordType === 'text') return new TextDecoder(record.encoding || 'utf-8').decode(record.data);
+        if (record.recordType === 'url') return new TextDecoder().decode(record.data);
+      }
+      return '';
+    }
+
+    document.getElementById('btnSimular').addEventListener('click', function () {
+      procesarCodigoLeido(document.getElementById('punto_simulado').value);
+    });
+
+    function procesarCodigoLeido(codigo) {
+      const punto = puntosCache.find(function (p) { return p.codigo_nfc === codigo; });
+      const display = document.getElementById('punto_display');
+      const btn = document.getElementById('btnEnviar');
+      if (!punto) {
+        puntoActual = null;
+        display.textContent = '⚠️ Tag no reconocido: ' + codigo;
+        display.className = 'no-reconocido';
+        btn.disabled = true;
+        btn.textContent = 'Tag no reconocido';
+        return;
+      }
+      puntoActual = punto;
+      display.textContent = '✅ ' + punto.id + ' — ' + punto.nombre;
+      display.className = 'leido';
+      btn.disabled = false;
+      btn.textContent = 'Enviar registro';
+    }
+
+    document.getElementById('turno_id').addEventListener('change', actualizarVigilanteMostrado);
+
+    function actualizarVigilanteMostrado() {
+      const turnoId = document.getElementById('turno_id').value;
+      const turno = turnosCache.find(function (t) { return t.id === turnoId; });
+      document.getElementById('vigilante_display').textContent = turno
+        ? (turno.vigilante_id + ' — ' + turno.vigilante_nombre)
+        : 'Sin vigilante asignado hoy para este turno';
+    }
+
+    function llenarSelect(idSelect, items, textoFn) {
+      const select = document.getElementById(idSelect);
+      select.innerHTML = '';
+      items.forEach(function (item) {
+        const opt = document.createElement('option');
+        opt.value = idSelect === 'punto_simulado' ? item.codigo_nfc : item.id;
+        opt.textContent = textoFn(item);
+        select.appendChild(opt);
+      });
+    }
+
+    function fileToBase64(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () { resolve(reader.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    let enviando = false;
+
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!puntoActual) { mostrarResultado('error', 'Escanea (o simula) un tag antes de enviar.'); return; }
+      if (enviando) return;
+      enviando = true;
+
+      const btn = document.getElementById('btnEnviar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Enviando...';
+
+      const fotoInput = document.getElementById('foto');
+      const archivo = fotoInput.files[0];
+
+      Promise.resolve(archivo ? fileToBase64(archivo) : null).then(async function (fotoBase64) {
+        const payload = {
+          intento_id: intentoId,
+          punto_id: puntoActual.id,
+          turno_id: document.getElementById('turno_id').value,
+          estado: document.getElementById('estado').value,
+          detalle: document.getElementById('detalle').value,
+          foto_base64: fotoBase64,
+          geo_lat: geoLat,
+          geo_lng: geoLng,
+          fecha_hora_lectura: new Date().toISOString(),
+        };
+
+        const resp = await MHRondas.enviarORegistrarComoPendiente(payload);
+
+        if (resp.encolado) {
+          mostrarResultado('encolado', '📥 Sin señal en este momento — el registro quedó guardado en el celular y se sincronizará solo apenas haya conexión (o toca "Sincronizar ahora").');
+          MHRondas.actualizarBadgePendientes();
+          bloquearFormularioTrasExito();
+        } else if (resp.resultado.ok) {
+          const data = resp.resultado;
+          if (data.ronda_completa) {
+            mostrarResultado('completa', '🏁 ¡Ronda completa! ' + data.puntos_visitados + '/' + data.puntos_programados + ' puntos.\n' + formatearDuracion(data.fecha_hora_inicio, data.fecha_hora_fin) + '\n\nregistro_id: ' + data.registro_id);
+            document.getElementById('btnMenu').style.display = 'block';
+          } else {
+            mostrarResultado('ok', '✅ Registrado (' + data.puntos_visitados + '/' + data.puntos_programados + ').\nregistro_id: ' + data.registro_id);
+          }
+          bloquearFormularioTrasExito();
+        } else {
+          mostrarResultado('error', 'Error: ' + resp.resultado.error);
+          reactivarParaReintentar();
+        }
+      });
+    });
+
+    let primerRegistroHecho = false;
+
+    function bloquearFormularioTrasExito() {
+      document.getElementById('form').style.display = 'none';
+      document.getElementById('btnReiniciar').style.display = 'block';
+      enviando = false;
+      if (!primerRegistroHecho) {
+        primerRegistroHecho = true;
+        document.getElementById('turno_id').disabled = true;
+      }
+    }
+
+    function reactivarParaReintentar() {
+      const btn = document.getElementById('btnEnviar');
+      btn.disabled = false;
+      btn.textContent = 'Enviar registro';
+      enviando = false;
+    }
+
+    function formatearDuracion(isoInicio, isoFin) {
+      if (!isoInicio || !isoFin) return '';
+      const inicio = new Date(isoInicio), fin = new Date(isoFin);
+      let seg = Math.max(0, Math.round((fin - inicio) / 1000));
+      const h = Math.floor(seg / 3600); seg -= h * 3600;
+      const m = Math.floor(seg / 60); seg -= m * 60;
+      const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+      return 'Inicio: ' + inicio.toLocaleString('es-PE', opts) + ' — Fin: ' + fin.toLocaleString('es-PE', opts) + '\nDuración: ' + h + 'h ' + m + 'm ' + seg + 's';
+    }
+
+    document.getElementById('btnMenu').addEventListener('click', function () { location.reload(); });
+
+    document.getElementById('btnReiniciar').addEventListener('click', function () {
+      document.getElementById('form').style.display = 'block';
+      document.getElementById('btnReiniciar').style.display = 'none';
+      document.getElementById('btnMenu').style.display = 'none';
+      document.getElementById('resultado').style.display = 'none';
+      puntoActual = null;
+      document.getElementById('punto_display').textContent = 'Ningún tag leído todavía';
+      document.getElementById('punto_display').className = '';
+      document.getElementById('estado').value = 'NORMAL';
+      document.getElementById('detalle').value = '';
+      document.getElementById('foto').value = '';
+      document.getElementById('btnEnviar').disabled = true;
+      document.getElementById('btnEnviar').textContent = 'Escanea un tag primero';
+      intentoId = generarIntentoId();
+    });
+
+    document.getElementById('btnSincronizar').addEventListener('click', async function () {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Sincronizando...';
+      const res = await MHRondas.sincronizarPendientes();
+      btn.disabled = false;
+      btn.textContent = '🔄 Sincronizar ahora';
+      MHRondas.actualizarBadgePendientes();
+      mostrarResultado(res.quedanPendientes > 0 ? 'encolado' : 'ok',
+        'Sincronizados: ' + res.enviados + '. Pendientes: ' + res.quedanPendientes + (!navigator.onLine ? ' (sin señal ahora mismo)' : ''));
+    });
+
+    function mostrarResultado(tipo, texto) {
+      const div = document.getElementById('resultado');
+      div.style.display = 'block';
+      div.className = tipo;
+      div.textContent = texto;
+    }
+  </script>
+</body>
+</html>
