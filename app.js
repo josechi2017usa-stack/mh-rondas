@@ -78,6 +78,18 @@ async function obtenerDatosFormulario() {
   return datos;
 }
 
+async function obtenerIncidenciasDelPunto(puntoId) {
+  try {
+    const res = await fetch(API_URL + '?accion=incidencias_punto&punto_id=' + encodeURIComponent(puntoId));
+    const datos = await res.json();
+    return datos.incidencias || [];
+  } catch (err) {
+    // Sin señal en este momento: no bloqueamos el registro por esto,
+    // simplemente no hay nada que preguntar.
+    return [];
+  }
+}
+
 function obtenerDatosCache() {
   const guardado = localStorage.getItem('mh_datos_cache');
   return guardado ? JSON.parse(guardado) : { puntos: [], turnos: [] };
@@ -182,6 +194,7 @@ if ('serviceWorker' in navigator) {
 window.MHRondas = {
   obtenerDatosFormulario: obtenerDatosFormulario,
   obtenerDatosCache: obtenerDatosCache,
+  obtenerIncidenciasDelPunto: obtenerIncidenciasDelPunto,
   enviarORegistrarComoPendiente: enviarORegistrarComoPendiente,
   sincronizarPendientes: sincronizarPendientes,
   actualizarBadgePendientes: actualizarBadgePendientes,
