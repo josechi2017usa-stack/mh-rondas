@@ -3,7 +3,7 @@
 // en IndexedDB manejada por app.js — así evitamos mezclar dos mecanismos
 // de "offline" distintos y tener errores de lógica difíciles de rastrear.
 
-const CACHE_NAME = 'mh-rondas-v1';
+const CACHE_NAME = 'mh-rondas-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -44,11 +44,18 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
+  // Red primero: si hay señal, siempre trae la versión más nueva y
+  // actualiza la copia guardada. Solo usa la copia vieja si de verdad
+  // no hay conexión — así las actualizaciones sí llegan sin que el
+  // vigilante tenga que desinstalar y reinstalar la app.
   event.respondWith(
-    caches.match(event.request).then(function (cacheado) {
-      if (cacheado) return cacheado;
-      return fetch(event.request).catch(function () {
-        return caches.match('./index.html');
+    fetch(event.request).then(function (respuestaRed) {
+      const copia = respuestaRed.clone();
+      caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copia); });
+      return respuestaRed;
+    }).catch(function () {
+      return caches.match(event.request).then(function (cacheado) {
+        return cacheado || caches.match('./index.html');
       });
     })
   );
