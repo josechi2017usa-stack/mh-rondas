@@ -47,6 +47,11 @@
       <button type="button" id="btnSimular">Simular escaneo de este tag</button>
     </div>
 
+    <div id="incidencias_bloque" style="display:none; margin-top:14px; padding:12px; background:#fff8e1; border:1px solid #f9a825; border-radius:8px;">
+      <label style="margin-top:0; color:#7A4E0A;">⚠️ Este punto tiene incidencias abiertas</label>
+      <div id="incidencias_lista"></div>
+    </div>
+
     <label>Turno</label>
     <select id="turno_id" required></select>
 
@@ -184,6 +189,7 @@
         display.className = 'no-reconocido';
         btn.disabled = true;
         btn.textContent = 'Tag no reconocido';
+        ocultarIncidencias();
         return;
       }
       puntoActual = punto;
@@ -191,6 +197,25 @@
       display.className = 'leido';
       btn.disabled = false;
       btn.textContent = 'Enviar registro';
+      cargarIncidenciasDelPunto(punto.id);
+    }
+
+    function ocultarIncidencias() {
+      document.getElementById('incidencias_bloque').style.display = 'none';
+      document.getElementById('incidencias_lista').innerHTML = '';
+    }
+
+    async function cargarIncidenciasDelPunto(puntoId) {
+      ocultarIncidencias();
+      const incidencias = await MHRondas.obtenerIncidenciasDelPunto(puntoId);
+      if (incidencias.length === 0) return;
+      document.getElementById('incidencias_bloque').style.display = 'block';
+      document.getElementById('incidencias_lista').innerHTML = incidencias.map(function (i) {
+        return '<label style="display:flex; align-items:flex-start; gap:8px; font-weight:normal; margin-top:8px;">' +
+          '<input type="checkbox" class="chk-incidencia" value="' + i.id + '" style="width:auto; margin-top:3px;">' +
+          '<span>' + i.prioridad + ' — ' + (i.descripcion || '(sin descripción)') + ' <small style="color:#7A4E0A;">(' + i.hora + ')</small><br><em>¿Ya se solucionó?</em></span>' +
+          '</label>';
+      }).join('');
     }
 
     document.getElementById('turno_id').addEventListener('change', actualizarVigilanteMostrado);
@@ -239,6 +264,8 @@
       const archivo = fotoInput.files[0];
 
       Promise.resolve(archivo ? fileToBase64(archivo) : null).then(async function (fotoBase64) {
+        const incidenciasMarcadas = Array.from(document.querySelectorAll('.chk-incidencia:checked')).map(function (c) { return c.value; });
+
         const payload = {
           intento_id: intentoId,
           punto_id: puntoActual.id,
@@ -249,6 +276,8 @@
           geo_lat: geoLat,
           geo_lng: geoLng,
           fecha_hora_lectura: new Date().toISOString(),
+          incidencias_a_cerrar: incidenciasMarcadas,
+          nota_resolucion: incidenciasMarcadas.length > 0 ? document.getElementById('detalle').value : '',
         };
 
         const resp = await MHRondas.enviarORegistrarComoPendiente(payload);
@@ -315,6 +344,7 @@
       document.getElementById('resultado').style.display = 'none';
       puntoActual = null;
       document.getElementById('punto_display').textContent = 'Ningún tag leído todavía';
+      ocultarIncidencias();
       document.getElementById('punto_display').className = '';
       document.getElementById('estado').value = 'NORMAL';
       document.getElementById('detalle').value = '';
