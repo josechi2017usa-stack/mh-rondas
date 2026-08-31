@@ -157,12 +157,13 @@ document.addEventListener('visibilitychange', function () {
 async function actualizarBadgePendientes() {
   const pendientes = await listarPendientes();
   const badge = document.getElementById('badge_pendientes');
-  if (!badge) return;
+  const btnSync = document.getElementById('btnSincronizar');
   if (pendientes.length > 0) {
-    badge.style.display = 'block';
-    badge.textContent = '📥 ' + pendientes.length + ' registro(s) pendiente(s) de sincronizar';
+    if (badge) { badge.style.display = 'block'; badge.textContent = '📥 ' + pendientes.length + ' registro(s) pendiente(s) de sincronizar'; }
+    if (btnSync) btnSync.style.display = 'block';
   } else {
-    badge.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    if (btnSync) btnSync.style.display = 'none';
   }
 }
 
