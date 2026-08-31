@@ -108,9 +108,27 @@
       puntosCache = datos.puntos;
       llenarSelect('punto_simulado', datos.puntos, function (p) { return p.codigo_nfc + ' — ' + p.nombre; });
       llenarSelect('turno_id', datos.turnos, function (t) { return t.id + ' — ' + t.nombre; });
+
+      // Si Android reinició la página en segundo plano a mitad de una
+      // ronda, esto restaura el turno que ya estaba bloqueado (en vez de
+      // dejar que vuelva a mostrar el primero de la lista sin avisar).
+      const turnoGuardado = localStorage.getItem('mh_turno_bloqueado');
+      if (turnoGuardado && datos.turnos.some(function (t) { return t.id === turnoGuardado; })) {
+        document.getElementById('turno_id').value = turnoGuardado;
+        document.getElementById('turno_id').disabled = true;
+        primerRegistroHecho = true;
+      }
+
       actualizarVigilanteMostrado();
       configurarModoNFC();
       MHRondas.actualizarBadgePendientes();
+      // Por si el celular se cerró y se volvió a abrir DESPUÉS de recuperar
+      // señal (el evento 'online' no se dispara en ese caso porque nunca
+      // hubo una transición offline->online mientras la página estaba
+      // cargada) — revisamos la cola pendiente también aquí, al abrir.
+      if (navigator.onLine) {
+        MHRondas.sincronizarPendientes(MHRondas.actualizarBadgePendientes);
+      }
     }
     cargarDatos();
 
@@ -264,6 +282,7 @@
       if (!primerRegistroHecho) {
         primerRegistroHecho = true;
         document.getElementById('turno_id').disabled = true;
+        localStorage.setItem('mh_turno_bloqueado', document.getElementById('turno_id').value);
       }
     }
 
@@ -284,7 +303,10 @@
       return 'Inicio: ' + inicio.toLocaleString('es-PE', opts) + ' — Fin: ' + fin.toLocaleString('es-PE', opts) + '\nDuración: ' + h + 'h ' + m + 'm ' + seg + 's';
     }
 
-    document.getElementById('btnMenu').addEventListener('click', function () { location.reload(); });
+    document.getElementById('btnMenu').addEventListener('click', function () {
+      localStorage.removeItem('mh_turno_bloqueado');
+      location.reload();
+    });
 
     document.getElementById('btnReiniciar').addEventListener('click', function () {
       document.getElementById('form').style.display = 'block';
