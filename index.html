@@ -73,7 +73,7 @@
 
   <button id="btnReiniciar">Registrar otro punto</button>
   <button id="btnMenu" style="display:none; background:#555; margin-top:8px;">Volver al inicio</button>
-  <button id="btnSincronizar" style="background:#1565c0;">🔄 Sincronizar ahora</button>
+  <button id="btnSincronizar" style="background:#1565c0; display:none;">🔄 Sincronizar ahora</button>
 
   <div id="resultado" style="display:none;"></div>
 
@@ -310,8 +310,13 @@
       btn.disabled = false;
       btn.textContent = '🔄 Sincronizar ahora';
       MHRondas.actualizarBadgePendientes();
-      mostrarResultado(res.quedanPendientes > 0 ? 'encolado' : 'ok',
-        'Sincronizados: ' + res.enviados + '. Pendientes: ' + res.quedanPendientes + (!navigator.onLine ? ' (sin señal ahora mismo)' : ''));
+      if (res.quedanPendientes === 0) {
+        mostrarResultado('ok', '✅ Todo está al día — no hay nada pendiente por sincronizar.');
+      } else if (!navigator.onLine) {
+        mostrarResultado('encolado', 'Sin señal ahora mismo. Quedan ' + res.quedanPendientes + ' registro(s) guardados en el celular — se subirán solos apenas haya conexión.');
+      } else {
+        mostrarResultado('encolado', 'Se sincronizaron ' + res.enviados + '. Quedan ' + res.quedanPendientes + ' por revisar.');
+      }
     });
 
     function mostrarResultado(tipo, texto) {
