@@ -112,7 +112,7 @@
       turnosCache = datos.turnos;
       puntosCache = datos.puntos;
       llenarSelect('punto_simulado', datos.puntos, function (p) { return p.codigo_nfc + ' — ' + p.nombre; });
-      llenarSelect('turno_id', datos.turnos, function (t) { return t.id + ' — ' + t.nombre; });
+      llenarSelect('turno_id', datos.turnos, function (t) { return t.id + ' — ' + t.nombre + (t.vigente ? ' ✅ EN CURSO' : ''); });
 
       // Si Android reinició la página en segundo plano a mitad de una
       // ronda, esto restaura el turno que ya estaba bloqueado (en vez de
