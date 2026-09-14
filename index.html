@@ -289,11 +289,11 @@
           bloquearFormularioTrasExito();
         } else if (resp.resultado.ok) {
           const data = resp.resultado;
-          if (data.ronda_completa) {
-            mostrarResultado('completa', '🏁 ¡Ronda completa! ' + data.puntos_visitados + '/' + data.puntos_programados + ' puntos.\n' + formatearDuracion(data.fecha_hora_inicio, data.fecha_hora_fin) + '\n\nregistro_id: ' + data.registro_id);
+          if (data.ronda_completa) {            
+            mostrarResultado('completa', '🏁 ¡Ronda completa! ' + data.puntos_visitados + '/' + data.puntos_programados + ' puntos.\n' + formatearDuracion(data.fecha_hora_inicio, data.fecha_hora_fin) + '\n\nregistro_id: ' + data.registro_id + (data.incidencia_creada ? '\n⚠️ Incidencia generada: ' + data.incidencia_creada : ''));
             document.getElementById('btnMenu').style.display = 'block';
           } else {
-            mostrarResultado('ok', '✅ Registrado (' + data.puntos_visitados + '/' + data.puntos_programados + ').\nregistro_id: ' + data.registro_id);
+            mostrarResultado('ok', '✅ Registrado (' + data.puntos_visitados + '/' + data.puntos_programados + ').\nregistro_id: ' + data.registro_id + (data.incidencia_creada ? '\n⚠️ Incidencia generada: ' + data.incidencia_creada : ''));
           }
           bloquearFormularioTrasExito();
         } else {
