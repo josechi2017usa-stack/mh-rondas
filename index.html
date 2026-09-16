@@ -87,6 +87,10 @@
   <script src="./app.js"></script>
   <script>
     const tokenSesion = new URLSearchParams(location.search).get('tk') || '';
+    const debugDiv2 = document.createElement('div');
+    debugDiv2.style.cssText = 'position:fixed; top:0; left:0; right:0; background:#000; color:#0F0; font-size:11px; padding:6px; z-index:9999; font-family:monospace; word-break:break-all;';
+    debugDiv2.textContent = tokenSesion ? ('DEBUG RONDAS: token recibido = ' + tokenSesion) : 'DEBUG RONDAS: NO llegó token al entrar aquí';
+    document.body.appendChild(debugDiv2);
     let geoLat = '', geoLng = '';
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) {
