@@ -382,8 +382,8 @@
     }
 
     document.getElementById('btnVolverMenu').addEventListener('click', function (e) {
-      e.preventDefault();
-      window.location.href = API_URL;
+      e.preventDefault();      
+      window.location.href = API_URL + '?tk=' + encodeURIComponent(tokenSesion);
     });
   </script>
 </body>
