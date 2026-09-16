@@ -31,8 +31,9 @@
   #badge_pendientes { display:none; margin-top:12px; padding:10px; background:#1565c0; color:white; border-radius:6px; font-size:13px; text-align:center; }
 </style>
 </head>
-<body>
-  <h2>MH Rondas</h2>  
+<body>  
+  <a href="#" id="btnVolverMenu" style="display:inline-block; margin-bottom:10px; color:#17365D; font-weight:600; text-decoration:none;">← Volver al Menú</a>
+  <h2>MH Rondas</h2>
   <div style="text-align:center; font-size:11px; color:#999; margin-top:-4px; margin-bottom:8px;">v2026-09-15-03</div>
   <p class="aviso" id="aviso_modo">Cargando...</p>
   <div id="badge_pendientes"></div>
@@ -373,13 +374,17 @@
         mostrarResultado('encolado', 'Se sincronizaron ' + res.enviados + '. Quedan ' + res.quedanPendientes + ' por revisar.');
       }
     });
-
-    function mostrarResultado(tipo, texto) {
+        function mostrarResultado(tipo, texto) {
       const div = document.getElementById('resultado');
       div.style.display = 'block';
       div.className = tipo;
       div.textContent = texto;
     }
+
+    document.getElementById('btnVolverMenu').addEventListener('click', function (e) {
+      e.preventDefault();
+      window.location.href = API_URL;
+    });
   </script>
 </body>
 </html>
