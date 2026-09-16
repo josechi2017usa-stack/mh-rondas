@@ -85,6 +85,7 @@
 
   <script src="./app.js"></script>
   <script>
+    const tokenSesion = new URLSearchParams(location.search).get('tk') || '';
     let geoLat = '', geoLng = '';
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) {
@@ -269,6 +270,7 @@
 
         const payload = {
           intento_id: intentoId,
+          token: tokenSesion,
           punto_id: puntoActual.id,
           turno_id: document.getElementById('turno_id').value,
           estado: document.getElementById('estado').value,
