@@ -31,10 +31,10 @@
   #badge_pendientes { display:none; margin-top:12px; padding:10px; background:#1565c0; color:white; border-radius:6px; font-size:13px; text-align:center; }
 </style>
 </head>
-<body>  
+<body>
   <a href="#" id="btnVolverMenu" style="display:block; width:100%; box-sizing:border-box; margin-bottom:14px; padding:12px; background:#17365D; color:white; font-weight:700; font-size:15px; text-decoration:none; text-align:center; border-radius:6px;">← Volver al Menú</a>
   <h2>MH Rondas</h2>
-  <div style="text-align:center; font-size:11px; color:#999; margin-top:-4px; margin-bottom:8px;">v2026-09-16-XX</div>
+  <div style="text-align:center; font-size:11px; color:#999; margin-top:-4px; margin-bottom:8px;">v2026-09-16-01</div>
   <p class="aviso" id="aviso_modo">Cargando...</p>
   <div id="badge_pendientes"></div>
 
@@ -87,10 +87,6 @@
   <script src="./app.js"></script>
   <script>
     const tokenSesion = new URLSearchParams(location.search).get('tk') || '';
-    const debugDiv2 = document.createElement('div');
-    debugDiv2.style.cssText = 'position:fixed; top:0; left:0; right:0; background:#000; color:#0F0; font-size:11px; padding:6px; z-index:9999; font-family:monospace; word-break:break-all;';
-    debugDiv2.textContent = tokenSesion ? ('DEBUG RONDAS: token recibido = ' + tokenSesion) : 'DEBUG RONDAS: NO llegó token al entrar aquí';
-    document.body.appendChild(debugDiv2);
     let geoLat = '', geoLng = '';
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) {
@@ -111,9 +107,9 @@
     async function cargarDatos() {
       let datos;
       try {
-        datos = await MHRondas.obtenerDatosFormulario(); // intenta en vivo
+        datos = await MHRondas.obtenerDatosFormulario();
       } catch (err) {
-        datos = MHRondas.obtenerDatosCache(); // offline: usa lo último guardado
+        datos = MHRondas.obtenerDatosCache();
         mostrarResultado('encolado', 'Sin señal — usando la última lista de puntos/turnos guardada en este celular.');
       }
       turnosCache = datos.turnos;
@@ -121,9 +117,6 @@
       llenarSelect('punto_simulado', datos.puntos, function (p) { return p.codigo_nfc + ' — ' + p.nombre; });
       llenarSelect('turno_id', datos.turnos, function (t) { return t.id + ' — ' + t.nombre + (t.vigente ? ' ✅ EN CURSO' : ''); });
 
-      // Si Android reinició la página en segundo plano a mitad de una
-      // ronda, esto restaura el turno que ya estaba bloqueado (en vez de
-      // dejar que vuelva a mostrar el primero de la lista sin avisar).
       const turnoGuardado = localStorage.getItem('mh_turno_bloqueado');
       if (turnoGuardado && datos.turnos.some(function (t) { return t.id === turnoGuardado; })) {
         document.getElementById('turno_id').value = turnoGuardado;
@@ -134,10 +127,6 @@
       actualizarVigilanteMostrado();
       configurarModoNFC();
       MHRondas.actualizarBadgePendientes();
-      // Por si el celular se cerró y se volvió a abrir DESPUÉS de recuperar
-      // señal (el evento 'online' no se dispara en ese caso porque nunca
-      // hubo una transición offline->online mientras la página estaba
-      // cargada) — revisamos la cola pendiente también aquí, al abrir.
       if (navigator.onLine) {
         MHRondas.sincronizarPendientes(MHRondas.actualizarBadgePendientes);
       }
@@ -296,7 +285,7 @@
           bloquearFormularioTrasExito();
         } else if (resp.resultado.ok) {
           const data = resp.resultado;
-          if (data.ronda_completa) {            
+          if (data.ronda_completa) {
             mostrarResultado('completa', '🏁 ¡Ronda completa! ' + data.puntos_visitados + '/' + data.puntos_programados + ' puntos.\n' + formatearDuracion(data.fecha_hora_inicio, data.fecha_hora_fin) + '\n\nregistro_id: ' + data.registro_id + (data.incidencia_creada ? '\n⚠️ Incidencia generada: ' + data.incidencia_creada : ''));
             document.getElementById('btnMenu').style.display = 'block';
           } else {
@@ -378,18 +367,18 @@
         mostrarResultado('encolado', 'Se sincronizaron ' + res.enviados + '. Quedan ' + res.quedanPendientes + ' por revisar.');
       }
     });
-        function mostrarResultado(tipo, texto) {
+
+    function mostrarResultado(tipo, texto) {
       const div = document.getElementById('resultado');
       div.style.display = 'block';
       div.className = tipo;
       div.textContent = texto;
     }
-   document.getElementById('btnVolverMenu').addEventListener('click', function (e) {
-   e.preventDefault();
-   const destino = API_URL + '?tk=' + encodeURIComponent(tokenSesion);
-   alert('DEBUG: tokenSesion="' + tokenSesion + '"\nDestino="' + destino + '"');
-   window.location.href = destino;
-  });
+
+    document.getElementById('btnVolverMenu').addEventListener('click', function (e) {
+      e.preventDefault();
+      history.back();
+    });
   </script>
 </body>
 </html>
